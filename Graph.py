@@ -272,17 +272,19 @@ class Factory:
 
 class Graph:
 
-	def __init__(self, name):
+	def __init__(self, name, factory=None):
 		"""
 		Graph constructor.
 
 		:param str name: name of graph
+		:param Factory factory: factory to use in creating Entity and Constraint objects
 		:return: Empty Graph object.
 		"""
 
 		self.name = name
 		self._entities = set()
 		self._constraints = set()
+		self.factory = factory
 
 	@property
 	def entities(self):
@@ -303,7 +305,7 @@ class Graph:
 	def add(self, obj):
 		"""
 		Add a constraint or entity to the graph. If already added, does nothing. If obj is a Constraint, also adds its
-		 linked Entity to the graph. If obj is an Entity, also adds all of its constraints to graph.
+		linked Entity to the graph. If obj is an Entity, also adds all of its constraints to graph.
 
 		:param obj: Constraint or Entity object to add.
 		:return: None
@@ -319,7 +321,7 @@ class Graph:
 		if type(obj) == _Constraint:
 			self._constraints.add(obj)
 
-			if obj.entity is not None:
+			if obj.entity is None:
 				raise AssertionError("Cannot add unlinked constraint to graph.")
 
 			self._entities.add(obj.entity)
@@ -356,3 +358,36 @@ class Graph:
 		return self.name + "\n\t" + \
 			str(len(self._entities)) + " entities\n\t" + \
 			str(len(self._constraints)) + " constraints."
+
+	def register_entity(self, identifier, property_map):
+		if self.factory is None:
+			return
+
+		self.factory.register_entity(identifier, property_map)
+
+	def register_constraint(self, identifier, entity_type):
+		if self.factory is None:
+			return
+
+		self.factory.register_constraint(identifier, entity_type)
+
+	def create_entity(self, identifier):
+		if self.factory is None:
+			return
+
+		entity = self.factory.create_entity(identifier)
+		self.add(entity)
+
+		return entity
+
+	def create_constraint(self, identifier, clause, callback, link_to=None):
+		if self.factory is None:
+			return
+
+		constraint = self.factory.create_constraint(identifier, clause, callback)
+
+		if link_to is not None:
+			self.factory.link(link_to, constraint)
+			self.add(constraint)
+
+		return constraint
