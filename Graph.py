@@ -251,3 +251,62 @@ class Factory:
 		entity.add_constraint(constraint)
 
 		constraint.check()
+
+
+class Graph:
+
+	def __init__(self, name):
+		self.name = name
+		self._entities = set()
+		self._constraints = set()
+
+	@property
+	def entities(self):
+		return self._entities
+
+	@entities.setter
+	def entities(self, value):
+		raise NotImplementedError("Cannot reassign entities of graph")
+
+	@property
+	def constraints(self):
+		return self._constraints
+
+	@constraints.setter
+	def constraints(self, value):
+		raise NotImplementedError("Cannot reassign constraints of graph")
+
+	def add(self, obj):
+		if type(obj) == _Entity:
+			self._entities.add(obj)
+
+			for constraint in obj.constraints:
+				self.add(constraint)
+
+		if type(obj) == _Constraint:
+			self._constraints.add(obj)
+			self._entities.add(obj.entity)
+
+	def remove(self, obj):
+		if type(obj) == _Entity:
+			self._entities.remove(obj)
+
+			for constraint in obj.constraints:
+				self.remove(constraint)
+
+		if type(obj) == _Constraint:
+			self._constraints.remove(obj)
+
+			# TODO: delete constraint from Entity? remove Entity if has no constraint?
+
+	def __contains__(self, item):
+		if type(item) == _Entity:
+			return item in self._entities
+
+		if type(item) == _Constraint:
+			return item in self._constraints
+
+	def __str__(self):
+		return self.name + "\n\t" + \
+			str(len(self._entities)) + " entities\n\t" + \
+			str(len(self._constraints)) + " constraints."
