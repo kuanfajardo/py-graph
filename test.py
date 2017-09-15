@@ -30,3 +30,4 @@ f.link(subject, constraint)
 constraint.satisfy() 
 constraint.fail()
 constraint.check()
+

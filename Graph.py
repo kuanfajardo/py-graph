@@ -26,9 +26,21 @@ class _Constraint:
 
 		self._value_changed = callback
 		self.identifier = identifier
-		self.satisfied = False
+		self._satisfied = False
 		self.clause = clause
 		self.entity = None
+
+	@property
+	def satisfied(self):
+		return self._satisfied
+
+	@satisfied.setter
+	def satisfied(self, value):
+		utils.assert_type(value, bool)
+
+		if self._satisfied != value:
+			self._satisfied = value
+			self._value_changed(self._satisfied)
 
 	def satisfy(self):
 		"""
@@ -37,7 +49,7 @@ class _Constraint:
 		:return: None
 		"""
 
-		self._set(True)
+		self.satisfied = True
 
 	def fail(self):
 		"""
@@ -45,21 +57,21 @@ class _Constraint:
 		:return None
 		"""
 
-		self._set(False)
+		self.satisfied = False
 
-	def _set(self, value):
+	def check(self):
 		"""
-		Set the constraint to value.
+		Checks the constraint for satisfaction (and sets the constraint to that value).
+			Requires constraint to have been linked to an entity.
 
-		:param bool value: value to set constraint to true -> satisfied, false -> broken
 		:return: None
+		:raises: TypeError if constraint has not been linked to en entity.
 		"""
 
-		utils.assert_type(value, bool)
+		if self.entity is None:
+			raise Warning("Constraint cannot be checked if it has not been linked to an Entity")
 
-		if self.satisfied != value:
-			self.satisfied = value
-			self._value_changed(self.satisfied)
+		self.satisfied = self.clause(self.entity)
 
 	def link_to(self, entity):
 		"""
@@ -74,20 +86,6 @@ class _Constraint:
 
 		if self.entity is None:
 			self.entity = entity
-
-	def check(self):
-		"""
-		Checks the constraint for satisfaction (and sets the constraint to that value).
-			Requires constraint to have been linked to an entity.
-
-		:return: None
-		:raises: TypeError if constraint has not been linked to en entity.
-		"""
-
-		if self.entity is None:
-			raise RuntimeError("Constraint cannot be checked if it has not been linked to an Entity")
-
-		self._set(self.clause(self.entity))
 
 
 class _Entity:
@@ -107,9 +105,6 @@ class _Entity:
 
 		:return:
 
-		self.properties: Map<str, Any> - keys are property names (same as keys in property_map), values are
-			property values (of type given by property_map)
-
 		self.constraints: Array<_Constraint> - contains all Constraints linked to Entity
 
 		"""
@@ -119,11 +114,10 @@ class _Entity:
 		self.identifier = identifier
 		self.property_map = property_map
 		self.constraints = []
-		self.properties = {}
 
 	def __getitem__(self, item):
 		utils.assert_type(item, str)
-		return self.properties[item]
+		return self.__dict__[item]
 
 	def __setitem__(self, key, value):
 		utils.assert_type(key, str)
@@ -137,7 +131,7 @@ class _Entity:
 			raise TypeError(
 				"Property \"" + key + "\" is of type \"" + expected_type + "\", not of \"" + type(value) + "\".")
 
-		self.properties[key] = value
+		self.__dict__[key] = value
 
 	def add_constraint(self, constraint):
 		"""
@@ -174,8 +168,8 @@ class Factory:
 		Factory constructor.
 		"""
 
-		self.entity_map = {}
-		self.constraint_map = {}
+		self._entity_map = {}
+		self._constraint_map = {}
 
 	def register_entity(self, identifier, property_map):
 		"""
@@ -188,8 +182,8 @@ class Factory:
 
 		utils.assert_params([identifier, property_map], [str, dict])
 
-		if identifier not in self.entity_map:
-			self.entity_map[identifier] = property_map
+		if identifier not in self._entity_map:
+			self._entity_map[identifier] = property_map
 
 	def register_constraint(self, identifier, constraint_type):
 		"""
@@ -201,8 +195,8 @@ class Factory:
 
 		utils.assert_params([identifier, constraint_type], [str, str])
 
-		if identifier not in self.constraint_map:
-			self.constraint_map[identifier] = constraint_type
+		if identifier not in self._constraint_map:
+			self._constraint_map[identifier] = constraint_type
 
 	def create_entity(self, identifier):
 		"""
@@ -213,8 +207,8 @@ class Factory:
 
 		utils.assert_type(identifier, str)
 
-		if identifier in self.entity_map:
-			return _Entity(identifier, self.entity_map[identifier])
+		if identifier in self._entity_map:
+			return _Entity(identifier, self._entity_map[identifier])
 
 		raise AttributeError("Entity type \"" + identifier + "\" is not registered.")
 
@@ -229,7 +223,7 @@ class Factory:
 
 		utils.assert_params([identifier, clause, callback], [str, callable, callable])
 
-		if identifier in self.constraint_map:
+		if identifier in self._constraint_map:
 			return _Constraint(identifier, clause, callback)
 
 		raise AttributeError("Constraint type \"" + identifier + "\" is not registered.")
@@ -247,10 +241,10 @@ class Factory:
 
 		utils.assert_params([constraint, entity], [_Constraint, _Entity])
 
-		if self.constraint_map[constraint.identifier] != entity.identifier:
+		if self._constraint_map[constraint.identifier] != entity.identifier:
 			raise AttributeError(
 				"Constraint of type \"" + constraint.identifier + "\" can only be linked to Entity of type \"" +
-				self.constraint_map[constraint.identifier] + "\"." + "Tried to link to Entity of type \"" +
+				self._constraint_map[constraint.identifier] + "\"." + "Tried to link to Entity of type \"" +
 				entity.identifier + "\".")
 
 		constraint.link_to(entity)
