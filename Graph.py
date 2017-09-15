@@ -7,6 +7,8 @@ class _Constraint:
 
 	It has a satisfaction clause, representing the conditions on the entity that cause the constraint to be satisfied.
 	Whenever the the constraint is broken or satisfied, a response is triggered.
+
+	Must be linked to an entity to be of any use.
 	"""
 
 	def __init__(self, identifier, clause, callback):
@@ -160,7 +162,8 @@ class _Entity:
 
 class Factory:
 	"""
-	Class responsible
+	Creates Constraint and Entity objects. In order to create Entity/Constraint objects, they must be registered via
+	register_entity and register_constraint methods, respectively.
 	"""
 
 	def __init__(self):
@@ -173,11 +176,13 @@ class Factory:
 
 	def register_entity(self, identifier, property_map):
 		"""
-		Register an identifier - property map pair for use in creating  entities.
+		Register an identifier - property map pair for use in creating entities.
 
 		:param str identifier: unique identifier describing entity type i.e. "class", "person", "subject"
-		:param dict property_map:
-		:return:
+		:param dict property_map: dictionary whose keys are names of entity properties (i.e. "name", "age"), and whose
+			values are the expected type (i.e. str, int, dict) of that property. Note: to denote a first-class
+			function as a type, use the "callable" keyword.
+		:return: None
 		"""
 
 		utils.assert_params([identifier, property_map], [str, dict])
@@ -185,24 +190,30 @@ class Factory:
 		if identifier not in self._entity_map:
 			self._entity_map[identifier] = property_map
 
-	def register_constraint(self, identifier, constraint_type):
+	def register_constraint(self, identifier, entity_type):
+		"""
+		Register an identifier - property map pair for use in creating entities.
+		:param identifier: unique identifier describing constraint type
+		:param entity_type: identifier of entity constraint is to be linked to; must have been registered
+		:return: None
+		:raises: AssertionError if entity_type is not registered
 		"""
 
-		:param identifier:
-		:param constraint_type:
-		:return:
-		"""
+		utils.assert_params([identifier, entity_type], [str, str])
 
-		utils.assert_params([identifier, constraint_type], [str, str])
+		if entity_type not in self._entity_map:
+			raise AssertionError("Constraint entity_type is not registered")
 
 		if identifier not in self._constraint_map:
-			self._constraint_map[identifier] = constraint_type
+			self._constraint_map[identifier] = entity_type
 
 	def create_entity(self, identifier):
 		"""
+		Factory method for creating Entity objects.
 
-		:param identifier:
-		:return:
+		:param str identifier: identifier of Entity to create
+		:return: Entity object of type identifier
+		:raises: AttributeError if entity type is not registered.
 		"""
 
 		utils.assert_type(identifier, str)
@@ -214,11 +225,15 @@ class Factory:
 
 	def create_constraint(self, identifier, clause, callback):
 		"""
+		Factory method for creating Constraint objects.
 
-		:param str identifier:
-		:param clause:
-		:param callback:
-		:return:
+		:param str identifier: identifier of Constraint to create
+		:param clause: function that takes an Entity object and returns a bool if the constraint is satisfied,
+			false otherwise
+		:param callback: function to be called when the constraint changes state; takes a boolean representing the
+			constraint state (True -> satisfied, False -> not)
+		:return: Constraint object of type identifier
+		:raises: AttributeError if constraint type is not registered.
 		"""
 
 		utils.assert_params([identifier, clause, callback], [str, callable, callable])
@@ -230,10 +245,12 @@ class Factory:
 
 	def link(self, a, b):
 		"""
+		Links a constraint to an entity.
 
-		:param a:
-		:param b:
-		:return:
+		:param a: constraint or entity object
+		:param b: constraint or entity object; must be of different type than a
+		:return: None
+		:raises: AttributeError if type of entity is not the registered "companion" type of the given constraint type.
 		"""
 
 		constraint = a if type(a) == _Constraint else b
