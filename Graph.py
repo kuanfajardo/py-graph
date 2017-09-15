@@ -97,12 +97,12 @@ class _Entity:
 		(2) can be constrained. These constraints are on the properties mentioned above.
 	"""
 
-	def __init__(self, identifier, property_map):
+	def __init__(self, identifier, attribute_map):
 		"""
 		Entity constructor creates an entity of type type with no constraints and no properties.
 
 		:param str identifier: identifier of entity i.e. "subject", "person", "dog"
-		:param dict property_map: dict<str, obj> map of entity properties (i.e. "name", "age") to their expected type
+		:param dict attribute_map: dict<str, obj> map of entity properties (i.e. "name", "age") to their expected type
 									(i.e. str, Map)
 
 		:return:
@@ -111,29 +111,43 @@ class _Entity:
 
 		"""
 
-		utils.assert_params([identifier, property_map], [str, dict])
+		utils.assert_params([identifier, attribute_map], [str, dict])
 
-		self.identifier = identifier
-		self.property_map = property_map
-		self.constraints = []
+		object.__setattr__(self, "identifier", identifier)
+		object.__setattr__(self, "attribute_map", attribute_map)
+		object.__setattr__(self, "constraints", [])
 
 	def __getitem__(self, item):
 		utils.assert_type(item, str)
-		return self.__dict__[item]
+		return self.__getattr__(item)
 
 	def __setitem__(self, key, value):
 		utils.assert_type(key, str)
+		self.__setattr__(key, value)
 
-		if key not in self.property_map:
-			raise AttributeError("Entity of type " + self.identifier + " does not contain property \"" + key + "\"")
+	def __setattr__(self, key, value):
+		protected = ["constraints", "identifier", "attribute_map"]
+		if key in protected:
+			raise AttributeError("Cannot modify " + key + "attribute of an Entity object")
 
-		expected_type = self.property_map[key]
+		if key not in self.attribute_map:
+			raise AttributeError("Entity of type " + self.identifier + " does not have attribute \"" + key + "\"")
+
+		expected_type = self.attribute_map[key]
 
 		if type(value) != expected_type:
 			raise TypeError(
-				"Property \"" + key + "\" is of type \"" + expected_type + "\", not of \"" + type(value) + "\".")
+				"Attribute \"" + key + "\" is of type " + str(expected_type) + ", not of type" + str(type(value)) + ".")
 
-		self.__dict__[key] = value
+		object.__setattr__(self, key, value)
+
+	def __getattr__(self, item):
+		utils.assert_type(item, str)
+
+		if item not in self.attribute_map:
+			raise AttributeError("Entity of type " + self.identifier + " does not have attribute \"" + item + "\"")
+
+		return self.__dict__[item]
 
 	def add_constraint(self, constraint):
 		"""
@@ -174,25 +188,25 @@ class Factory:
 		self._entity_map = {}
 		self._constraint_map = {}
 
-	def register_entity(self, identifier, property_map):
+	def register_entity(self, identifier, attribute_map):
 		"""
-		Register an identifier - property map pair for use in creating entities.
+		Register an identifier - attribute map pair for use in creating entities.
 
 		:param str identifier: unique identifier describing entity type i.e. "class", "person", "subject"
-		:param dict property_map: dictionary whose keys are names of entity properties (i.e. "name", "age"), and whose
-			values are the expected type (i.e. str, int, dict) of that property. Note: to denote a first-class
+		:param dict attribute_map: dictionary whose keys are names of entity properties (i.e. "name", "age"), and whose
+			values are the expected type (i.e. str, int, dict) of that attribute. Note: to denote a first-class
 			function as a type, use the "callable" keyword.
 		:return: None
 		"""
 
-		utils.assert_params([identifier, property_map], [str, dict])
+		utils.assert_params([identifier, attribute_map], [str, dict])
 
 		if identifier not in self._entity_map:
-			self._entity_map[identifier] = property_map
+			self._entity_map[identifier] = attribute_map
 
 	def register_constraint(self, identifier, entity_type):
 		"""
-		Register an identifier - property map pair for use in creating entities.
+		Register an identifier - attribute map pair for use in creating entities.
 		:param identifier: unique identifier describing constraint type
 		:param entity_type: identifier of entity constraint is to be linked to; must have been registered
 		:return: None
@@ -207,11 +221,13 @@ class Factory:
 		if identifier not in self._constraint_map:
 			self._constraint_map[identifier] = entity_type
 
-	def create_entity(self, identifier):
+	def create_entity(self, identifier, obj=None):
 		"""
 		Factory method for creating Entity objects.
 
 		:param str identifier: identifier of Entity to create
+		:param obj: object or dict; if object, uses object properties to populate entity properties;
+			if dict, uses key-value pairs
 		:return: Entity object of type identifier
 		:raises: AttributeError if entity type is not registered.
 		"""
@@ -219,7 +235,17 @@ class Factory:
 		utils.assert_type(identifier, str)
 
 		if identifier in self._entity_map:
-			return _Entity(identifier, self._entity_map[identifier])
+			entity = _Entity(identifier, self._entity_map[identifier])
+
+			if obj is not None:
+				if type(obj) != dict:
+					obj = obj.__dict__
+
+				for p in obj:
+					entity[p] = obj[p]
+
+			return entity
+
 
 		raise AttributeError("Entity type \"" + identifier + "\" is not registered.")
 
@@ -359,11 +385,11 @@ class Graph:
 			str(len(self._entities)) + " entities\n\t" + \
 			str(len(self._constraints)) + " constraints."
 
-	def register_entity(self, identifier, property_map):
+	def register_entity(self, identifier, attribute_map):
 		if self.factory is None:
 			return
 
-		self.factory.register_entity(identifier, property_map)
+		self.factory.register_entity(identifier, attribute_map)
 
 	def register_constraint(self, identifier, entity_type):
 		if self.factory is None:
@@ -371,11 +397,11 @@ class Graph:
 
 		self.factory.register_constraint(identifier, entity_type)
 
-	def create_entity(self, identifier):
+	def create_entity(self, identifier, obj=None):
 		if self.factory is None:
 			return
 
-		entity = self.factory.create_entity(identifier)
+		entity = self.factory.create_entity(identifier, obj)
 		self.add(entity)
 
 		return entity
