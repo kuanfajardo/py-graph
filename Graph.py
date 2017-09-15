@@ -119,7 +119,7 @@ class _Entity:
 
 	def __getitem__(self, item):
 		utils.assert_type(item, str)
-		return self.__getattr__(item)
+		return self.__getattribute__(item)
 
 	def __setitem__(self, key, value):
 		utils.assert_type(key, str)
