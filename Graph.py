@@ -95,6 +95,12 @@ class _Entity:
 	An entity is an abstraction of an object that
 		(1) has pre-determined, type-specific properties
 		(2) can be constrained. These constraints are on the properties mentioned above.
+
+	Can be modified/observed via attributes ==> entity.name = "Bob" ; n = entity.name
+	Can be modified via bracket notation ==> entity["name"] = "Bob" ; n = entity["name"]
+
+	However, can only access/set attributes that are defined in the attribute_map that the Entity is initialized with.
+	Additionally, attributes "property
 	"""
 
 	def __init__(self, identifier, attribute_map):
@@ -105,10 +111,9 @@ class _Entity:
 		:param dict attribute_map: dict<str, obj> map of entity properties (i.e. "name", "age") to their expected type
 									(i.e. str, Map)
 
-		:return:
+		:return: _Entity object with no constraints
 
 		self.constraints: Array<_Constraint> - contains all Constraints linked to Entity
-
 		"""
 
 		utils.assert_params([identifier, attribute_map], [str, dict])
@@ -128,7 +133,7 @@ class _Entity:
 	def __setattr__(self, key, value):
 		protected = ["constraints", "identifier", "attribute_map"]
 		if key in protected:
-			raise AttributeError("Cannot modify " + key + "attribute of an Entity object")
+			raise AttributeError("Cannot modify " + key + " attribute of an Entity object")
 
 		if key not in self.attribute_map:
 			raise AttributeError("Entity of type " + self.identifier + " does not have attribute \"" + key + "\"")
@@ -144,10 +149,11 @@ class _Entity:
 	def __getattr__(self, item):
 		utils.assert_type(item, str)
 
-		if item not in self.attribute_map:
-			raise AttributeError("Entity of type " + self.identifier + " does not have attribute \"" + item + "\"")
+		if item not in self.attribute_map and item not in protected:
+			raise AttributeError("Entity of type \"" + self.identifier + "\" does not have attribute \"" + item + "\"")
 
 		return self.__dict__[item]
+
 
 	def add_constraint(self, constraint):
 		"""
