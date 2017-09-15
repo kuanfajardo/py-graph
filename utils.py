@@ -6,7 +6,7 @@ def assert_type(obj, t):
 
 	if not type(obj) == t:
 		print(obj)
-		raise TypeError()
+		raise TypeError("Expected type " + t + ". Received object of type " + str(type(obj)) + ".")
 
 
 def assert_params(params, types):
@@ -21,4 +21,4 @@ def assert_params(params, types):
 
 def assert_callable(function):
 	if not callable(function):
-		raise TypeError()
+		raise TypeError(function + " is not callable.")
