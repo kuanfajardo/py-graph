@@ -273,6 +273,13 @@ class Factory:
 class Graph:
 
 	def __init__(self, name):
+		"""
+		Graph constructor.
+
+		:param str name: name of graph
+		:return: Empty Graph object.
+		"""
+
 		self.name = name
 		self._entities = set()
 		self._constraints = set()
@@ -294,6 +301,15 @@ class Graph:
 		raise NotImplementedError("Cannot reassign constraints of graph")
 
 	def add(self, obj):
+		"""
+		Add a constraint or entity to the graph. If already added, does nothing. If obj is a Constraint, also adds its
+		 linked Entity to the graph. If obj is an Entity, also adds all of its constraints to graph.
+
+		:param obj: Constraint or Entity object to add.
+		:return: None
+		:raises: AssertionError is obj is of Constraint type and it is unlinked.
+		"""
+
 		if type(obj) == _Entity:
 			self._entities.add(obj)
 
@@ -302,9 +318,22 @@ class Graph:
 
 		if type(obj) == _Constraint:
 			self._constraints.add(obj)
+
+			if obj.entity is not None:
+				raise AssertionError("Cannot add unlinked constraint to graph.")
+
 			self._entities.add(obj.entity)
 
 	def remove(self, obj):
+		"""
+		Remove a constraint or entity from graph.
+
+		:param obj: Constraint or Entity object to remove from graph. If obj is an Entity, removes all of its
+			constraints from graph as well.
+
+		:return: None
+		"""
+
 		if type(obj) == _Entity:
 			self._entities.remove(obj)
 
