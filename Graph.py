@@ -11,7 +11,7 @@ class _Constraint:
 	Must be linked to an entity to be of any use.
 	"""
 
-	def __init__(self, identifier, clause, callback):
+	def __init__(self, identifier, clause, callback=None):
 		"""
 		Constraint constructor
 
@@ -42,7 +42,9 @@ class _Constraint:
 
 		if self._satisfied != value:
 			self._satisfied = value
-			self._value_changed(self._satisfied)
+
+			if self._value_changed is not None:
+				self._value_changed(self._satisfied)
 
 	def satisfy(self):
 		"""
@@ -149,7 +151,7 @@ class _Entity:
 	def __getattr__(self, item):
 		utils.assert_type(item, str)
 
-		if item not in self.attribute_map and item not in protected:
+		if item not in self.attribute_map:
 			raise AttributeError("Entity of type \"" + self.identifier + "\" does not have attribute \"" + item + "\"")
 
 		return self.__dict__[item]
@@ -193,6 +195,7 @@ class Factory:
 
 		self._entity_map = {}
 		self._constraint_map = {}
+		self._constraint_clauses = {}
 
 	def register_entity(self, identifier, attribute_map):
 		"""
@@ -210,7 +213,7 @@ class Factory:
 		if identifier not in self._entity_map:
 			self._entity_map[identifier] = attribute_map
 
-	def register_constraint(self, identifier, entity_type):
+	def register_constraint(self, identifier, entity_type, clause):
 		"""
 		Register an identifier - attribute map pair for use in creating entities.
 		:param identifier: unique identifier describing constraint type
@@ -219,13 +222,14 @@ class Factory:
 		:raises: AssertionError if entity_type is not registered
 		"""
 
-		utils.assert_params([identifier, entity_type], [str, str])
+		utils.assert_params([identifier, entity_type, clause], [str, str, callable])
 
 		if entity_type not in self._entity_map:
-			raise AssertionError("Constraint entity_type is not registered")
+			raise AssertionError("Entity type \"" + entity_type + "\" is not registered")
 
 		if identifier not in self._constraint_map:
 			self._constraint_map[identifier] = entity_type
+			self._constraint_clauses[identifier] = clause
 
 	def create_entity(self, identifier, obj=None):
 		"""
@@ -255,7 +259,7 @@ class Factory:
 
 		raise AttributeError("Entity type \"" + identifier + "\" is not registered.")
 
-	def create_constraint(self, identifier, clause, callback):
+	def create_constraint(self, identifier, callback=None, *args):
 		"""
 		Factory method for creating Constraint objects.
 
@@ -268,9 +272,18 @@ class Factory:
 		:raises: AttributeError if constraint type is not registered.
 		"""
 
-		utils.assert_params([identifier, clause, callback], [str, callable, callable])
+		if callback is None:
+			utils.assert_type(identifier, str)
+		else:
+			utils.assert_params([identifier, callback], [str, callable])
 
 		if identifier in self._constraint_map:
+			clause = self._constraint_clauses[identifier]
+
+			if utils.is_nested_clause(clause):
+				utils.assert_num_params(self._constraint_clauses[identifier], *args)
+				clause = clause(*args)
+
 			return _Constraint(identifier, clause, callback)
 
 		raise AttributeError("Constraint type \"" + identifier + "\" is not registered.")
@@ -293,7 +306,7 @@ class Factory:
 		if self._constraint_map[constraint.identifier] != entity.identifier:
 			raise AttributeError(
 				"Constraint of type \"" + constraint.identifier + "\" can only be linked to Entity of type \"" +
-				self._constraint_map[constraint.identifier] + "\"." + "Tried to link to Entity of type \"" +
+				self._constraint_map[constraint.identifier] + "\". Tried to link to Entity of type \"" +
 				entity.identifier + "\".")
 
 		constraint.link_to(entity)
@@ -391,17 +404,20 @@ class Graph:
 			str(len(self._entities)) + " entities\n\t" + \
 			str(len(self._constraints)) + " constraints."
 
+	def register_class(self, c):
+		self.register_entity(c.__name__, {"name":str, "number":str})
+
 	def register_entity(self, identifier, attribute_map):
 		if self.factory is None:
 			return
 
 		self.factory.register_entity(identifier, attribute_map)
 
-	def register_constraint(self, identifier, entity_type):
+	def register_constraint(self, identifier, entity_type, clause):
 		if self.factory is None:
 			return
 
-		self.factory.register_constraint(identifier, entity_type)
+		self.factory.register_constraint(identifier, entity_type, clause)
 
 	def create_entity(self, identifier, obj=None):
 		if self.factory is None:
@@ -412,11 +428,11 @@ class Graph:
 
 		return entity
 
-	def create_constraint(self, identifier, clause, callback, link_to=None):
+	def create_constraint(self, identifier, callback=None, link_to=None, *args):
 		if self.factory is None:
 			return
 
-		constraint = self.factory.create_constraint(identifier, clause, callback)
+		constraint = self.factory.create_constraint(identifier, callback, *args)
 
 		if link_to is not None:
 			self.factory.link(link_to, constraint)
