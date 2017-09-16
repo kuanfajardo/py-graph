@@ -329,7 +329,7 @@ class Graph:
 		self.name = name
 		self._entities = set()
 		self._constraints = set()
-		self.factory = factory
+		self.factory = factory if factory is not None else Factory()
 
 	@property
 	def entities(self):
@@ -404,34 +404,19 @@ class Graph:
 			str(len(self._entities)) + " entities\n\t" + \
 			str(len(self._constraints)) + " constraints."
 
-	def register_class(self, c):
-		self.register_entity(c.__name__, {"name":str, "number":str})
-
 	def register_entity(self, identifier, attribute_map):
-		if self.factory is None:
-			return
-
 		self.factory.register_entity(identifier, attribute_map)
 
 	def register_constraint(self, identifier, entity_type, clause):
-		if self.factory is None:
-			return
-
 		self.factory.register_constraint(identifier, entity_type, clause)
 
 	def create_entity(self, identifier, obj=None):
-		if self.factory is None:
-			return
-
 		entity = self.factory.create_entity(identifier, obj)
 		self.add(entity)
 
 		return entity
 
 	def create_constraint(self, identifier, callback=None, link_to=None, *args):
-		if self.factory is None:
-			return
-
 		constraint = self.factory.create_constraint(identifier, callback, *args)
 
 		if link_to is not None:
