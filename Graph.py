@@ -91,6 +91,10 @@ class _Constraint:
 		if self.entity is None:
 			self.entity = entity
 
+	def unlink(self):
+		self.entity.remove_constraint(self)
+		self.entity = None
+
 
 class _Entity:
 	"""
@@ -371,12 +375,14 @@ class Graph:
 
 			self._entities.add(obj.entity)
 
-	def remove(self, obj):
+	def remove(self, obj, keep=False):
 		"""
 		Remove a constraint or entity from graph.
 
 		:param obj: Constraint or Entity object to remove from graph. If obj is an Entity, removes all of its
 			constraints from graph as well.
+		:param bool keep: If obj is Constraint and keep is True, then removing the obj from the graph will NOT unlink
+			obj from its Entity.
 
 		:return: None
 		"""
@@ -390,7 +396,9 @@ class Graph:
 		if type(obj) == _Constraint:
 			self._constraints.remove(obj)
 
-			# TODO: delete constraint from Entity? remove Entity if has no constraint?
+			if not keep:
+				obj.unlink()
+
 
 	def __contains__(self, item):
 		if type(item) == _Entity:
