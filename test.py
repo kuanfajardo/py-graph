@@ -1,33 +1,49 @@
 from Graph import *
 
-f = Factory()
-
 subjectMap = {
     "name": str,
     "number": str,
     "units": int
 }
 
-f.register_entity("subject", subjectMap)
-f.register_constraint("name is Algorithms", "subject")
-
-subject = f.create_entity("subject")
-subject["number"] = "6.006"
-subject["name"] = "Algorithms"
+class Subject():
+	def __init__(self, name, number):
+		self.name = name
+		self.number = number
 
 
-def clause(entity):
-    return entity["name"] == "Algorithms"
+g = Graph("TestGraph")
+
+g.register_class(Subject)
+g.register_entity("subject", subjectMap)
+
+def clause(classNumber, className):
+	def inner_clause(entity):
+		return entity.number == classNumber and entity.name == className
+
+	return inner_clause
+	# return entity.number == "6.006"
 
 
 def callback(satisfied):
-    print(satisfied)
+	print(satisfied)
 
-constraint = f.create_constraint("name is Algorithms", clause, callback)
+g.register_constraint("subject number", "Subject", clause)
 
-f.link(subject, constraint) 
 
-constraint.satisfy() 
-constraint.fail()
-constraint.check()
+#
+# d = {
+# 	"name": "Algorithms",
+# 	"number": "6.006"
+# }
+
+
+s = Subject("Algorithms", "6.006")
+subject = g.create_entity("Subject", s)
+
+
+args = ("6.006", "Algorithms")
+constraint = g.create_constraint("subject number", callback, *args)
+
+print(constraint.satisfied)
 
